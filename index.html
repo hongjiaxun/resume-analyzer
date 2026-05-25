@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能简历分析系统 - Sidereus AI</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-light: #818cf8;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+        }
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+        }
+        .card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            transition: all 0.2s;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(79,70,229,0.4); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+        .upload-zone {
+            border: 2px dashed rgba(255,255,255,0.15);
+            transition: all 0.2s;
+        }
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: var(--primary-light);
+            background: rgba(79,70,229,0.05);
+        }
+        .fade-in { animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .score-ring {
+            width: 120px; height: 120px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2rem; font-weight: 700;
+            background: conic-gradient(var(--primary) calc(var(--score) * 1%), rgba(255,255,255,0.1) 0);
+        }
+        .score-ring-inner {
+            width: 96px; height: 96px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .tag {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            background: rgba(79,70,229,0.15);
+            color: var(--primary-light);
+        }
+        textarea:focus, input:focus { outline: none; border-color: var(--primary-light); }
+        textarea::placeholder { color: #64748b; }
+        .spinner {
+            width: 20px; height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="border-b border-white/10 px-6 py-4">
+            <div class="max-w-5xl mx-auto flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold text-sm">S</div>
+                    <span class="font-semibold text-lg">智能简历分析系统</span>
+                </div>
+                <span class="text-sm" style="color: var(--text-secondary)">Sidereus AI</span>
+            </div>
+        </header>
+
+        <main class="max-w-5xl mx-auto px-6 py-8">
+            <!-- Step 1: Upload -->
+            <section class="card p-6 mb-6 fade-in">
+                <h2 class="text-lg font-semibold mb-4">1. 上传简历</h2>
+                <div class="upload-zone rounded-xl p-8 text-center cursor-pointer"
+                     :class="{ dragover }"
+                     @click="$refs.fileInput.click()"
+                     @dragover.prevent="dragover = true"
+                     @dragleave="dragover = false"
+                     @drop.prevent="onDrop">
+                    <input ref="fileInput" type="file" accept=".pdf" class="hidden" @change="onFileSelect">
+                    <div v-if="!uploading && !uploaded">
+                        <div class="text-3xl mb-2">📄</div>
+                        <p class="text-sm" style="color: var(--text-secondary)">点击或拖拽 PDF 文件到此处</p>
+                    </div>
+                    <div v-else-if="uploading" class="flex items-center justify-center gap-3">
+                        <div class="spinner"></div>
+                        <span>正在解析简历...</span>
+                    </div>
+                    <div v-else class="flex items-center justify-center gap-3">
+                        <span class="text-green-400">✓</span>
+                        <span>{{ fileName }}</span>
+                        <button class="text-xs ml-2 px-2 py-1 rounded bg-white/10 hover:bg-white/20" @click.stop="resetUpload">重新上传</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 2: Extracted Info -->
+            <section v-if="resumeData" class="card p-6 mb-6 fade-in">
+                <h2 class="text-lg font-semibold mb-4">2. 提取信息</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div v-for="field in infoFields" :key="field.key" class="flex items-start gap-3 p-3 rounded-lg bg-white/5">
+                        <div class="flex-1">
+                            <div class="text-xs" style="color: var(--text-secondary)">{{ field.label }}</div>
+                            <div class="text-sm mt-0.5">{{ resumeData.info[field.key] || '未识别' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Step 3: Job Match -->
+            <section v-if="resumeData" class="card p-6 mb-6 fade-in">
+                <h2 class="text-lg font-semibold mb-4">3. 岗位匹配</h2>
+                <textarea v-model="jobDesc" rows="4"
+                    class="w-full rounded-lg p-3 text-sm border resize-none"
+                    style="background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: #f1f5f9;"
+                    placeholder="粘贴岗位需求描述，例如：&#10;Python后端开发工程师，熟悉FastAPI/Django，了解Docker、Redis、MySQL..."
+                ></textarea>
+                <button class="btn-primary text-white px-6 py-2.5 rounded-lg text-sm font-medium mt-3"
+                        :disabled="!jobDesc.trim() || matching"
+                        @click="doMatch">
+                    <span v-if="matching" class="flex items-center gap-2"><div class="spinner"></div>分析中...</span>
+                    <span v-else>开始匹配分析</span>
+                </button>
+            </section>
+
+            <!-- Step 4: Match Result -->
+            <section v-if="matchResult" class="card p-6 mb-6 fade-in">
+                <h2 class="text-lg font-semibold mb-4">4. 匹配结果</h2>
+                <div class="flex flex-col md:flex-row items-center gap-8">
+                    <div class="score-ring" :style="{ '--score': matchResult.match_score }">
+                        <div class="score-ring-inner">
+                            <span>{{ matchResult.match_score }}</span>
+                        </div>
+                    </div>
+                    <div class="flex-1 space-y-3">
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm w-24" style="color: var(--text-secondary)">技能匹配</span>
+                            <div class="flex-1 h-2 rounded-full bg-white/10">
+                                <div class="h-full rounded-full bg-indigo-500" :style="{ width: matchResult.skill_match_rate + '%' }"></div>
+                            </div>
+                            <span class="text-sm font-medium w-10 text-right">{{ matchResult.skill_match_rate }}%</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-sm w-24" style="color: var(--text-secondary)">经验相关</span>
+                            <div class="flex-1 h-2 rounded-full bg-white/10">
+                                <div class="h-full rounded-full bg-indigo-400" :style="{ width: matchResult.experience_relevance + '%' }"></div>
+                            </div>
+                            <span class="text-sm font-medium w-10 text-right">{{ matchResult.experience_relevance }}%</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5 p-4 rounded-lg bg-white/5 text-sm leading-relaxed" style="color: var(--text-secondary)">
+                    {{ matchResult.analysis }}
+                </div>
+            </section>
+
+            <!-- Error -->
+            <div v-if="error" class="card p-4 mb-6 border-red-500/30 bg-red-500/10 text-red-300 text-sm fade-in">
+                {{ error }}
+            </div>
+        </main>
+
+        <footer class="text-center py-6 text-xs" style="color: var(--text-secondary)">
+            Sidereus AI - 智能简历分析系统
+        </footer>
+    </div>
+
+    <script>
+    const API_BASE = (!window.location.hostname || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+        ? 'http://127.0.0.1:8000'
+        : 'https://your-api-url.com'; // 部署时替换
+
+    const { createApp, ref, computed } = Vue;
+
+    createApp({
+        setup() {
+            const fileInput = ref(null);
+            const dragover = ref(false);
+            const uploading = ref(false);
+            const fileName = ref('');
+            const resumeData = ref(null);
+            const jobDesc = ref('');
+            const matching = ref(false);
+            const matchResult = ref(null);
+            const error = ref('');
+
+            const uploaded = computed(() => !!resumeData.value);
+
+            const infoFields = [
+                { key: 'name', label: '姓名' },
+                { key: 'phone', label: '电话' },
+                { key: 'email', label: '邮箱' },
+                { key: 'address', label: '地址' },
+                { key: 'job_intention', label: '求职意向' },
+                { key: 'expected_salary', label: '期望薪资' },
+                { key: 'work_years', label: '工作年限' },
+                { key: 'education', label: '学历背景' },
+                { key: 'project_experience', label: '项目经历' },
+            ];
+
+            async function uploadFile(file) {
+                if (!file.name.toLowerCase().endsWith('.pdf')) {
+                    error.value = '仅支持PDF格式文件';
+                    return;
+                }
+                error.value = '';
+                uploading.value = true;
+                fileName.value = file.name;
+
+                const form = new FormData();
+                form.append('file', file);
+
+                try {
+                    const res = await fetch(`${API_BASE}/api/upload`, { method: 'POST', body: form });
+                    if (!res.ok) {
+                        const data = await res.json();
+                        throw new Error(data.detail || '上传失败');
+                    }
+                    resumeData.value = await res.json();
+                    matchResult.value = null;
+                } catch (e) {
+                    error.value = e.message;
+                    fileName.value = '';
+                } finally {
+                    uploading.value = false;
+                }
+            }
+
+            function onFileSelect(e) {
+                if (e.target.files[0]) uploadFile(e.target.files[0]);
+            }
+
+            function onDrop(e) {
+                dragover.value = false;
+                if (e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]);
+            }
+
+            function resetUpload() {
+                fileName.value = '';
+                resumeData.value = null;
+                matchResult.value = null;
+                jobDesc.value = '';
+                error.value = '';
+            }
+
+            async function doMatch() {
+                if (!jobDesc.value.trim()) return;
+                error.value = '';
+                matching.value = true;
+                matchResult.value = null;
+
+                try {
+                    const res = await fetch(`${API_BASE}/api/match/${resumeData.value.resume_id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ description: jobDesc.value }),
+                    });
+                    if (!res.ok) {
+                        const data = await res.json();
+                        throw new Error(data.detail || '匹配失败');
+                    }
+                    matchResult.value = await res.json();
+                } catch (e) {
+                    error.value = e.message;
+                } finally {
+                    matching.value = false;
+                }
+            }
+
+            return {
+                fileInput, dragover, uploading, uploaded, fileName,
+                resumeData, jobDesc, matching, matchResult, error,
+                infoFields, onFileSelect, onDrop, resetUpload, doMatch,
+            };
+        }
+    }).mount('#app');
+    </script>
+</body>
+</html>
