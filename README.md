@@ -16,7 +16,7 @@ AI 赋能的智能简历分析系统 —— Sidereus AI 笔试项目
 
 - **后端**: Python + FastAPI
 - **PDF 解析**: pdfplumber
-- **AI 模型**: 通义千问 (DashScope API)
+- **AI 模型**: 小米 MiMo (OpenAI 兼容 API)
 - **缓存**: 内存缓存（可选 Redis）
 - **前端**: Vue 3 + Tailwind CSS
 
@@ -54,13 +54,13 @@ cp .env.example .env
 
 ### 2. 配置 API Key
 
-编辑 `.env` 文件，填入 DashScope API Key:
+编辑 `.env` 文件，填入小米 MiMo API Key:
 
 ```
-DASHSCOPE_API_KEY=your_api_key_here
+MIMO_API_KEY=your_api_key_here
+MIMO_BASE_URL=https://token-plan-cn.xiaomimimo.com/v1
+MIMO_MODEL=mimo-v2.5-pro
 ```
-
-> 获取 API Key: [DashScope 控制台](https://dashscope.console.aliyun.com/)
 
 ### 3. 启动后端
 
@@ -92,10 +92,10 @@ python -m http.server 3000
 
 ## 部署说明
 
-### 后端部署 (阿里云函数计算 FC)
+### 后端部署
 
 1. 打包 `backend/` 目录
-2. 配置环境变量 `DASHSCOPE_API_KEY`
+2. 配置环境变量 `MIMO_API_KEY`
 3. 设置入口函数为 `app.main:app`
 
 ### 前端部署 (GitHub Pages)
