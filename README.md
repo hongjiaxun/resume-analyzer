@@ -92,13 +92,24 @@ python -m http.server 3000
 
 ## 部署说明
 
-### 后端部署
+### 后端部署 (阿里云函数计算 FC)
 
-1. 打包 `backend/` 目录
-2. 配置环境变量 `MIMO_API_KEY`
-3. 设置入口函数为 `app.main:app`
+1. 进入 [函数计算控制台](https://fcnext.console.aliyun.com/)，创建 **Web 函数**
+2. 运行环境选择 **自定义运行时 / Python 3.12**
+3. 启动命令：`bash startup.sh`
+4. 监听端口：`9000`
+5. 执行超时时间：`300` 秒
+6. 环境变量添加 `MIMO_API_KEY`
+7. 上传 `backend.zip`（项目根目录打包）
+8. 创建 HTTP 触发器，关闭签名认证
 
 ### 前端部署 (GitHub Pages)
 
-1. 将 `frontend/` 目录内容推送到 GitHub Pages 分支
-2. 更新 `index.html` 中的 `API_BASE` 为后端实际地址
+1. 代码已配置 `gh-pages` 分支自动部署
+2. 访问地址: https://hongjiaxun.github.io/resume-analyzer/
+3. 前端 `API_BASE` 已指向 FC 后端地址
+
+### 线上演示
+
+- **前端**: https://hongjiaxun.github.io/resume-analyzer/
+- **后端 API**: https://xingshi-hdloanlgmq.cn-hangzhou.fcapp.run/

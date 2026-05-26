@@ -6,3 +6,9 @@ uploads/
 venv/
 node_modules/
 .DS_Store
+backend.zip
+test_*.pdf
+test_*.json
+test_*.txt
+.idea/
+.cache_debug.log
