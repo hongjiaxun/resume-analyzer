@@ -1,4 +1,5 @@
 import json
+import re
 from openai import OpenAI
 from app.config import MIMO_API_KEY, MIMO_BASE_URL, MIMO_MODEL
 from app.models.schemas import ResumeInfo, MatchResult
@@ -33,6 +34,20 @@ def _call_mimo_json(system_msg: str, prompt: str, default: dict) -> dict:
         return default
 
 
+def _format_project_experience(text: str) -> str:
+    """用分隔符分割项目，清理多余换行"""
+    if not text:
+        return text
+    text = text.replace('\\n', '\n')
+    # 用分隔符分割项目
+    if '《这是分割线》' in text:
+        parts = [p.strip() for p in text.split('《这是分割线》') if p.strip()]
+        return '\n\n'.join(parts)
+    # 兜底：合并连续换行
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
 def extract_resume_info(resume_text: str) -> dict:
     prompt = f"""从以下简历文本中提取信息，返回JSON。注意：所有字段必须从原文原样提取，禁止改写、总结、省略。
 
@@ -45,7 +60,7 @@ def extract_resume_info(resume_text: str) -> dict:
 - expected_salary: 期望薪资（原文内容）
 - work_years: 工作年限（原文内容）
 - education: 学历背景（原文内容）
-- project_experience: 项目经历——必须将简历中所有项目经历的完整原文复制到这里，包括每个项目的名称、技术栈、时间段、项目描述、职责描述等所有细节，一字不改。绝对不要只写项目名称或做任何摘要。
+- project_experience: 项目经历——必须将简历中所有项目经历的完整原文复制到这里，包括每个项目的名称、技术栈、时间段、项目描述、职责描述等所有细节，一字不改。绝对不要只写项目名称或做任何摘要。格式要求：每个不同项目之间必须用《这是分割线》分隔，例如：项目一内容《这是分割线》项目二内容。
 
 找不到的字段设为null。
 
@@ -54,11 +69,14 @@ def extract_resume_info(resume_text: str) -> dict:
 
 只返回JSON，不要其他文字。"""
 
-    return _call_mimo_json(
+    info = _call_mimo_json(
         "你是简历信息提取助手，严格按要求提取信息，不省略不改写。",
         prompt,
         ResumeInfo().model_dump(),
     )
+    if info.get("project_experience"):
+        info["project_experience"] = _format_project_experience(info["project_experience"])
+    return info
 
 
 def match_resume_to_job(resume_info: dict, resume_text: str, job_description: str) -> dict:

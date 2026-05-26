@@ -49,6 +49,7 @@ async def upload_resume(file: UploadFile = File(...)):
         info=ResumeInfo(**info),
     )
     _resume_store[resume_id] = {"info": info, "text": raw_text}
+    set_cached("resume", resume_id, {"info": info, "text": raw_text})
     return result
 
 
@@ -56,7 +57,12 @@ async def upload_resume(file: UploadFile = File(...)):
 async def match_resume(resume_id: str, job: JobDescription):
     stored = _resume_store.get(resume_id)
     if not stored:
-        raise HTTPException(404, "简历不存在，请先上传")
+        # 尝试从缓存恢复
+        cached_data = get_cached("resume", resume_id)
+        if cached_data:
+            stored = cached_data
+        else:
+            raise HTTPException(404, "简历不存在，请先上传")
 
     cache_key = f"{resume_id}:{job.description}"
     cached = get_cached("match", cache_key)
